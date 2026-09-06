@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import OrderBookTable from './components/order-book-table.vue'
-import QuotePanel from './components/quote-panel.vue'
+import OrderBookTable from './components/OrderBookTable.vue'
+import QuotePanel from './components/QuotePanel.vue'
 import { getBuyQuote, getOrderBook } from './services/market-api'
 import type { BuyQuote } from './types/buy-quote'
 import type { OrderBookSnapshot } from './types/order-book-snapshot.ts'
 import { createMarketHub } from './services/market-hub'
 import type { HubConnection } from '@microsoft/signalr'
+import MarketDepthChart from './components/MarketDepthChart.vue'
 
 const orderBook = ref<OrderBookSnapshot | null>(null)
 const isLoading = ref(true)
@@ -96,6 +97,9 @@ onBeforeUnmount(async () => {
       </div>
 
       <section v-else-if="orderBook" class="space-y-6">
+
+        <MarketDepthChart :snapshot="orderBook" />
+        
         <div class="grid gap-6 lg:grid-cols-2">
           <OrderBookTable title="Bids" :levels="orderBook.bids" side="bid" />
           <OrderBookTable title="Asks" :levels="orderBook.asks" side="ask" />

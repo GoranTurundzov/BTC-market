@@ -35,7 +35,7 @@ function loadMore() {
       </h2>
     </div>
 
-    <div class="h-[31rem] overflow-y-auto">
+    <div class="h-124 overflow-y-auto">
       <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-slate-800 text-xs uppercase tracking-wide text-slate-400">
           <tr>
