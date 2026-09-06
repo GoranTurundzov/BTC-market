@@ -1,11 +1,41 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { getOrderBook } from './services/marketApi'
-import type { OrderBookSnapshot } from './types/market'
+import { onMounted, ref, watch } from 'vue'
+import OrderBookTable from './components/OrderBookTable.vue'
+import QuotePanel from './components/QuotePanel.vue'
+import { getBuyQuote, getOrderBook } from './services/marketApi'
+import type { BuyQuote } from './types/buy-quote'
+import type { OrderBookSnapshot } from './types/order-book-snapshot'
 
 const orderBook = ref<OrderBookSnapshot | null>(null)
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
+
+const requestedQuantity = ref(1)
+const quote = ref<BuyQuote | null>(null)
+const isQuoteLoading = ref(false)
+const quoteErrorMessage = ref<string | null>(null)
+
+async function loadQuote(quantity: number) {
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    quote.value = null
+    quoteErrorMessage.value = 'Enter a quantity greater than zero.'
+    return
+  }
+
+  isQuoteLoading.value = true
+  quoteErrorMessage.value = null
+
+  try {
+    quote.value = await getBuyQuote(quantity)
+  } catch (error) {
+    quote.value = null
+    quoteErrorMessage.value = error instanceof Error ? error.message : 'Unknown error occurred.'
+  } finally {
+    isQuoteLoading.value = false
+  }
+}
+
+watch(requestedQuantity, loadQuote, { immediate: true })
 
 onMounted(async () => {
   try {
@@ -19,59 +49,47 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main>
-    <h1 class="text-3xl font-bold text-blue-500">
-      BTC/EUR Market Depth
-    </h1>
+  <main class="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-8">
+    <div class="mx-auto max-w-6xl">
+      <header class="mb-8">
+        <p class="mb-2 text-sm font-medium uppercase tracking-widest text-blue-400">
+          Market overview
+        </p>
 
-    <p v-if="isLoading">Loading order book...</p>
+        <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">BTC/EUR Market Depth</h1>
 
-    <p v-else-if="errorMessage" class="error">
-      {{ errorMessage }}
-    </p>
+        <p v-if="orderBook" class="mt-2 text-sm text-slate-400">
+          Last snapshot: {{ new Date(orderBook.acquiredAt).toLocaleString() }}
+        </p>
+      </header>
 
-    <section v-else-if="orderBook" class="order-book">
-      <div>
-        <h2>Bids</h2>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Price (EUR)</th>
-              <th>Quantity (BTC)</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-for="bid in orderBook.bids" :key="`${bid.price}-${bid.quantity}`">
-              <td>{{ bid.price.toFixed(2) }}</td>
-              <td>{{ bid.quantity }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div
+        v-if="isLoading"
+        class="rounded-xl border border-slate-700 bg-slate-900 p-8 text-center text-slate-400"
+      >
+        Loading order book...
       </div>
 
-      <div>
-        <h2>Asks</h2>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Price (EUR)</th>
-              <th>Quantity (BTC)</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-for="ask in orderBook.asks" :key="`${ask.price}-${ask.quantity}`">
-              <td>{{ ask.price.toFixed(2) }}</td>
-              <td>{{ ask.quantity }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div
+        v-else-if="errorMessage"
+        class="rounded-xl border border-rose-900 bg-rose-950/40 p-8 text-center text-rose-300"
+      >
+        {{ errorMessage }}
       </div>
-    </section>
+
+      <section v-else-if="orderBook" class="space-y-6">
+        <div class="grid gap-6 lg:grid-cols-2">
+          <OrderBookTable title="Bids" :levels="orderBook.bids" side="bid" />
+          <OrderBookTable title="Asks" :levels="orderBook.asks" side="ask" />
+        </div>
+
+        <QuotePanel
+          v-model="requestedQuantity"
+          :quote="quote"
+          :is-loading="isQuoteLoading"
+          :error-message="quoteErrorMessage"
+        />
+      </section>
+    </div>
   </main>
 </template>
-
-<style scoped></style>

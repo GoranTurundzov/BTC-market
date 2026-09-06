@@ -1,4 +1,5 @@
-﻿using BtcEurMarketDepth.Domain.Model;
+﻿using BtcEurMarketDepth.Application.MarketData;
+using BtcEurMarketDepth.Application.Quotes;
 
 namespace BtcEurMarketDepth.Api.Endpoints
 {
@@ -7,28 +8,38 @@ namespace BtcEurMarketDepth.Api.Endpoints
         public static IEndpointRouteBuilder MapMarketEndpoints(this IEndpointRouteBuilder endpoints)
         {
             endpoints.MapGet("/api/market/order-book", GetOrderBook);
+            endpoints.MapGet("/api/market/quote", GetBuyQuote);
 
             return endpoints;
         }
 
-        private static OrderBookSnapshot GetOrderBook()
+        private static async Task<IResult> GetOrderBook(
+            IOrderBookProvider orderBookProvider,
+            CancellationToken cancellationToken)
         {
-            return new OrderBookSnapshot(
-                symbol: "BTC/EUR",
-                acquiredAt: DateTimeOffset.UtcNow,
-                bids:
-                [
-                new PriceLevel(29_900m, 1.2m),
-                new PriceLevel(29_800m, 2.5m),
-                new PriceLevel(29_700m, 4.0m)
-                ],
-                asks:
-                [
-                new PriceLevel(30_000m, 1.0m),
-                new PriceLevel(30_100m, 4.0m),
-                new PriceLevel(30_200m, 9.0m)
-                ],
-                sequence: 1);
+            var orderBook = await orderBookProvider.GetLatestAsync(cancellationToken);
+
+            return Results.Ok(orderBook);
+        }
+
+        private static async Task<IResult> GetBuyQuote(
+            decimal quantity,
+            IOrderBookProvider orderBookProvider,
+            IBuyQuoteCalculator buyQuoteCalculator,
+            CancellationToken cancellationToken)
+        {
+            if (quantity <= 0)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Quantity must be greater than zero."
+                });
+            }
+
+            var orderBook = await orderBookProvider.GetLatestAsync(cancellationToken);
+            var quote = buyQuoteCalculator.Calculate(orderBook, quantity);
+
+            return Results.Ok(quote);
         }
     }
 }
