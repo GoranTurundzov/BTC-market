@@ -32,3 +32,6 @@ dotnet_diagnostic.IDE0055.severity = warning
 
 [**/Persistence/Migrations/*.cs]
 dotnet_diagnostic.CA1861.severity = none
+
+[**/OrderBookPollingService.cs]
+dotnet_diagnostic.CA1848.severity = none
