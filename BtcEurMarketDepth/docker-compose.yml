@@ -1,0 +1,32 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: btc-eur-market-depth-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "ASDqwe123!@#"
+    ports:
+      - "1433:1433"
+
+  api:
+    build:
+      context: .
+      dockerfile: BtcEurMarketDepth.Api/Dockerfile
+    container_name: btc-eur-market-depth-api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__MarketDepth: "Server=sqlserver,1433;Database=BtcEurMarketDepth;User Id=sa;Password=ASDqwe123!@#;TrustServerCertificate=True"
+    ports:
+      - "5272:8080"
+    depends_on:
+      - sqlserver
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: btc-eur-market-depth-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
