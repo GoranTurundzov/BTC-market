@@ -6,4 +6,5 @@
   <Project Path="BtcEurMarketDepth.Application/BtcEurMarketDepth.Application.csproj" />
   <Project Path="BtcEurMarketDepth.Domain/BtcEurMarketDepth.Domain.csproj" />
   <Project Path="BtcEurMarketDepth.Infrastructure/BtcEurMarketDepth.Infrastructure.csproj" />
+  <Project Path="BtcEurMarketDepth.Tests/BtcEurMarketDepth.Tests.csproj" />
 </Solution>
