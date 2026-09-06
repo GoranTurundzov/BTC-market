@@ -4,8 +4,13 @@ using BtcEurMarketDepth.Api.MarketData;
 using BtcEurMarketDepth.Application.MarketData;
 using BtcEurMarketDepth.Application.Quotes;
 using BtcEurMarketDepth.Infrastructure.MarketData;
+using BtcEurMarketDepth.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+var connectionString = builder.Configuration.GetConnectionString("MarketDepth") ?? throw new InvalidOperationException("The MarketDepth database connection string is not configured.");
 // Add services to the container.
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -22,6 +27,13 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+
+builder.Services.AddDbContextFactory<MarketDepthDbContext>(options =>
+{
+    options.UseSqlServer(connectionString);
+});
+
+builder.Services.AddSingleton<IOrderBookSnapshotAuditRepository, OrderBookSnapshotAuditRepository>();
 
 builder.Services.AddHttpClient<IOrderBookSource, BitstampOrderBookSource>(client =>
 {

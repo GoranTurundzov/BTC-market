@@ -8,6 +8,7 @@ namespace BtcEurMarketDepth.Infrastructure.MarketData
     IOrderBookSource orderBookSource,
     IOrderBookStore orderBookStore,
     IOrderBookUpdateNotifier orderBookUpdateNotifier,
+    IOrderBookSnapshotAuditRepository auditRepository,
     ILogger<OrderBookPollingService> logger) : BackgroundService
     {
         private readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(5);
@@ -29,6 +30,8 @@ namespace BtcEurMarketDepth.Infrastructure.MarketData
             try
             {
                 var snapshot = await orderBookSource.FetchLatestAsync(cancellationToken);
+
+                await auditRepository.SaveAsync(snapshot, cancellationToken);
 
                 orderBookStore.SetLatest(snapshot);
 
