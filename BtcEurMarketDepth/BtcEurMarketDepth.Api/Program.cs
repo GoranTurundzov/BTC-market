@@ -35,11 +35,20 @@ builder.Services.AddDbContextFactory<MarketDepthDbContext>(options =>
 
 builder.Services.AddSingleton<IOrderBookSnapshotAuditRepository, OrderBookSnapshotAuditRepository>();
 
-builder.Services.AddHttpClient<IOrderBookSource, BitstampOrderBookSource>(client =>
-{
-    client.BaseAddress = new Uri("https://www.bitstamp.net");
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
+builder.Services
+    .AddHttpClient<IOrderBookSource, BitstampOrderBookSource>(client =>
+    {
+        client.BaseAddress = new Uri("https://www.bitstamp.net");
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        options.Retry.MaxRetryAttempts = 3;
+        options.Retry.Delay = TimeSpan.FromSeconds(1);
+        options.Retry.UseJitter = true;
+
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
+    });
 
 builder.Services.AddSignalR();
 

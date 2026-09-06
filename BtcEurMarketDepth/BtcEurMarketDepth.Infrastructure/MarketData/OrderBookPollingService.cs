@@ -37,19 +37,25 @@ namespace BtcEurMarketDepth.Infrastructure.MarketData
 
                 await orderBookUpdateNotifier.NotifyAsync(snapshot, cancellationToken);
 
-                logger.LogInformation(
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
                     "Updated {Symbol} order book with {BidCount} bids and {AskCount} asks at {AcquiredAt}.",
                     snapshot.Symbol,
                     snapshot.Bids.Count,
                     snapshot.Asks.Count,
                     snapshot.AcquiredAt);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                throw;
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Failed to update the order book from Bitstamp.");
+                logger.LogError(
+                    exception,
+                    "Failed to acquire and process the latest order book snapshot.");
             }
         }
     }
