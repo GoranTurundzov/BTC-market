@@ -1,8 +1,6 @@
-﻿using BtcEurMarketDepth.Infrastructure.Persistence.Entities;
+using BtcEurMarketDepth.Infrastructure.Persistence.Entities;
+
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BtcEurMarketDepth.Infrastructure.Persistence
 {

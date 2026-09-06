@@ -1,12 +1,6 @@
 using BtcEurMarketDepth.Api.Configuration;
 using BtcEurMarketDepth.Api.Endpoints;
 using BtcEurMarketDepth.Api.Hubs;
-using BtcEurMarketDepth.Api.MarketData;
-using BtcEurMarketDepth.Application.MarketData;
-using BtcEurMarketDepth.Application.Quotes;
-using BtcEurMarketDepth.Infrastructure.MarketData;
-using BtcEurMarketDepth.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 

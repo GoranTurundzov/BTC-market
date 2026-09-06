@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 
 namespace BtcEurMarketDepth.Domain.Model
 {
@@ -39,11 +39,11 @@ namespace BtcEurMarketDepth.Domain.Model
             Asks = new ReadOnlyCollection<PriceLevel>(askLevels);
         }
 
-        private static void ValidateBidLevels(IReadOnlyList<PriceLevel> bids)
+        private static void ValidateBidLevels(PriceLevel[] bids)
         {
             ValidateUniquePrices(bids, "Bids");
 
-            for (var index = 1; index < bids.Count; index++)
+            for (var index = 1; index < bids.Length; index++)
             {
                 if (bids[index - 1].Price < bids[index].Price)
                 {
@@ -52,11 +52,11 @@ namespace BtcEurMarketDepth.Domain.Model
             }
         }
 
-        private static void ValidateAskLevels(IReadOnlyList<PriceLevel> asks)
+        private static void ValidateAskLevels(PriceLevel[] asks)
         {
             ValidateUniquePrices(asks, "Asks");
 
-            for (var index = 1; index < asks.Count; index++)
+            for (var index = 1; index < asks.Length; index++)
             {
                 if (asks[index - 1].Price > asks[index].Price)
                 {

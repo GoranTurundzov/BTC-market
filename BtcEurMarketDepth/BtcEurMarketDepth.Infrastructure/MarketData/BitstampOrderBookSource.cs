@@ -1,8 +1,9 @@
-﻿using BtcEurMarketDepth.Application.MarketData;
-using BtcEurMarketDepth.Domain.Model;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
+
+using BtcEurMarketDepth.Application.MarketData;
+using BtcEurMarketDepth.Domain.Model;
 
 namespace BtcEurMarketDepth.Infrastructure.MarketData
 {
@@ -20,12 +21,7 @@ namespace BtcEurMarketDepth.Infrastructure.MarketData
             var orderBook = await response.Content.ReadFromJsonAsync<BitstampOrderBookResponse>(
                 cancellationToken);
 
-            if (orderBook is null)
-            {
-                throw new InvalidOperationException("Bitstamp returned an empty order-book response.");
-            }
-
-            return CreateSnapshot(orderBook);
+            return CreateSnapshot(orderBook ?? throw new InvalidOperationException("Bitstamp returned an empty order-book response."));
         }
 
         private static OrderBookSnapshot CreateSnapshot(BitstampOrderBookResponse response)

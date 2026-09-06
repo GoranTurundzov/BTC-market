@@ -1,7 +1,9 @@
-﻿using BtcEurMarketDepth.Application.MarketData;
+using BtcEurMarketDepth.Application.MarketData;
 using BtcEurMarketDepth.Domain.Model;
 using BtcEurMarketDepth.Infrastructure.Persistence.Entities;
+
 using Microsoft.EntityFrameworkCore;
+
 using System.Text.Json;
 
 namespace BtcEurMarketDepth.Infrastructure.Persistence

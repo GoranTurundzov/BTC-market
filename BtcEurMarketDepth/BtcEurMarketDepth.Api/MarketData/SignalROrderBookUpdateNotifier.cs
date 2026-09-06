@@ -1,6 +1,7 @@
-﻿using BtcEurMarketDepth.Api.Hubs;
+using BtcEurMarketDepth.Api.Hubs;
 using BtcEurMarketDepth.Application.MarketData;
 using BtcEurMarketDepth.Domain.Model;
+
 using Microsoft.AspNetCore.SignalR;
 
 namespace BtcEurMarketDepth.Api.MarketData

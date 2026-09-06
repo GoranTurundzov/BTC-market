@@ -1,4 +1,5 @@
-﻿using BtcEurMarketDepth.Application.MarketData;
+using BtcEurMarketDepth.Application.MarketData;
+
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -53,9 +54,7 @@ namespace BtcEurMarketDepth.Infrastructure.MarketData
             }
             catch (Exception exception)
             {
-                logger.LogError(
-                    exception,
-                    "Failed to acquire and process the latest order book snapshot.");
+                logger.LogError(exception, "Failed to acquire and process the latest order book snapshot.");
             }
         }
     }
