@@ -1,9 +1,32 @@
-﻿using BtcEurMarketDepth.Domain.Model;
+using BtcEurMarketDepth.Domain.Model;
 
 namespace BtcEurMarketDepth.Application.Quotes
 {
+    /// <summary>
+    /// Calculates the estimated cost of buying BTC using the available ask levels.
+    /// </summary>
     public class BuyQuoteCalculator : IBuyQuoteCalculator
     {
+        /// <summary>
+        /// Calculates a purchase quote by consuming ask levels from the lowest
+        /// available price upwards.
+        /// </summary>
+        /// <param name="snapshot">
+        /// The order-book snapshot used for the calculation.
+        /// </param>
+        /// <param name="requestedQuantity">
+        /// The amount of BTC the user wants to buy.
+        /// </param>
+        /// <returns>
+        /// A quote containing the filled quantity, total cost, average price,
+        /// remaining quantity, and snapshot information.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="snapshot"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when the requested quantity is zero or negative.
+        /// </exception>
         public BuyQuote Calculate(OrderBookSnapshot snapshot, decimal requestedQuantity)
         {
             ArgumentNullException.ThrowIfNull(snapshot);

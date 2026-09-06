@@ -8,8 +8,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BtcEurMarketDepth.Api.Configuration
 {
+    /// <summary>
+    /// Registers the application's services and infrastructure dependencies.
+    /// </summary>
     public static class DependencyInjection
     {
+        /// <summary>
+        /// Registers services used directly by the API layer, including SignalR,
+        /// CORS, OpenAPI, and the market-update notifier.
+        /// </summary>
+        /// <param name="services">
+        /// The application's dependency-injection service collection.
+        /// </param>
+        /// <returns>
+        /// The same service collection for chaining additional registrations.
+        /// </returns>
         public static IServiceCollection AddApiServices(
             this IServiceCollection services)
         {
@@ -35,6 +48,15 @@ namespace BtcEurMarketDepth.Api.Configuration
             return services;
         }
 
+        /// <summary>
+        /// Registers application-level services such as quote calculation.
+        /// </summary>
+        /// <param name="services">
+        /// The application's dependency-injection service collection.
+        /// </param>
+        /// <returns>
+        /// The same service collection for chaining additional registrations.
+        /// </returns>
         public static IServiceCollection AddApplicationServices(
             this IServiceCollection services)
         {
@@ -45,6 +67,22 @@ namespace BtcEurMarketDepth.Api.Configuration
             return services;
         }
 
+        /// <summary>
+        /// Registers database access, external market-data access,
+        /// resilience policies, snapshot storage, and background polling.
+        /// </summary>
+        /// <param name="services">
+        /// The application's dependency-injection service collection.
+        /// </param>
+        /// <param name="configuration">
+        /// Application configuration containing the database connection string.
+        /// </param>
+        /// <returns>
+        /// The same service collection for chaining additional registrations.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the MarketDepth database connection string is missing.
+        /// </exception>
         public static IServiceCollection AddInfrastructureServices(
             this IServiceCollection services,
             IConfiguration configuration)
