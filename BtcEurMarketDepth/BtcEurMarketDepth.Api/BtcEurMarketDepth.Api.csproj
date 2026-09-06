@@ -11,10 +11,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\BtcEurMarketDepth.Application\BtcEurMarketDepth.Application.csproj" />
     <ProjectReference Include="..\BtcEurMarketDepth.Infrastructure\BtcEurMarketDepth.Infrastructure.csproj" />
   </ItemGroup>
