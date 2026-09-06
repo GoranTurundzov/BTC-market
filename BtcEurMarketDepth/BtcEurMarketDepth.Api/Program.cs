@@ -1,4 +1,6 @@
 using BtcEurMarketDepth.Api.Endpoints;
+using BtcEurMarketDepth.Api.Hubs;
+using BtcEurMarketDepth.Api.MarketData;
 using BtcEurMarketDepth.Application.MarketData;
 using BtcEurMarketDepth.Application.Quotes;
 using BtcEurMarketDepth.Infrastructure.MarketData;
@@ -16,17 +18,23 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
-builder.Services.AddHttpClient<IOrderBookProvider, BitstampOrderBookProvider>(client =>
+builder.Services.AddHttpClient<IOrderBookSource, BitstampOrderBookSource>(client =>
 {
     client.BaseAddress = new Uri("https://www.bitstamp.net");
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+builder.Services.AddSignalR();
+
+builder.Services.AddSingleton<IOrderBookUpdateNotifier, SignalROrderBookUpdateNotifier>();
+builder.Services.AddSingleton<IOrderBookStore, InMemoryOrderBookStore>();
 builder.Services.AddSingleton<IBuyQuoteCalculator, BuyQuoteCalculator>();
+builder.Services.AddHostedService<OrderBookPollingService>();
 
 var app = builder.Build();
 
@@ -41,5 +49,6 @@ app.UseHttpsRedirection();
 app.MapMarketEndpoints();
 
 app.UseCors("Frontend");
+app.MapHub<MarketHub>("/hubs/market");
 
 app.Run();

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
-import OrderBookTable from './components/OrderBookTable.vue'
-import QuotePanel from './components/QuotePanel.vue'
-import { getBuyQuote, getOrderBook } from './services/marketApi'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import OrderBookTable from './components/order-book-table.vue'
+import QuotePanel from './components/quote-panel.vue'
+import { getBuyQuote, getOrderBook } from './services/market-api'
 import type { BuyQuote } from './types/buy-quote'
-import type { OrderBookSnapshot } from './types/order-book-snapshot'
+import type { OrderBookSnapshot } from './types/order-book-snapshot.ts'
+import { createMarketHub } from './services/market-hub'
+import type { HubConnection } from '@microsoft/signalr'
 
 const orderBook = ref<OrderBookSnapshot | null>(null)
 const isLoading = ref(true)
@@ -14,6 +16,7 @@ const requestedQuantity = ref(1)
 const quote = ref<BuyQuote | null>(null)
 const isQuoteLoading = ref(false)
 const quoteErrorMessage = ref<string | null>(null)
+let marketHubConnection: HubConnection | null = null
 
 async function loadQuote(quantity: number) {
   if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -36,15 +39,30 @@ async function loadQuote(quantity: number) {
 }
 
 watch(requestedQuantity, loadQuote, { immediate: true })
+watch(orderBook, (snapshot) => {
+  if (snapshot) {
+    void loadQuote(requestedQuantity.value)
+  }
+})
 
 onMounted(async () => {
   try {
     orderBook.value = await getOrderBook()
+
+    marketHubConnection = createMarketHub((snapshot) => {
+      orderBook.value = snapshot
+    })
+
+    await marketHubConnection.start()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unknown error occurred.'
   } finally {
     isLoading.value = false
   }
+})
+
+onBeforeUnmount(async () => {
+  await marketHubConnection?.stop()
 })
 </script>
 

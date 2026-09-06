@@ -1,5 +1,5 @@
-import type { BuyQuote } from '../types/BuyQuote'
-import type { OrderBookSnapshot } from '../types/OrderBookSnapshot'
+import type { BuyQuote } from '../types/buy-quote'
+import type { OrderBookSnapshot } from '../types/order-book-snapshot'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5272'
 

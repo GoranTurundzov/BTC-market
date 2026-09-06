@@ -6,12 +6,12 @@ using System.Text.Json;
 
 namespace BtcEurMarketDepth.Infrastructure.MarketData
 {
-    public partial class BitstampOrderBookProvider(HttpClient httpClient) : IOrderBookProvider
+    public class BitstampOrderBookSource(HttpClient httpClient) : IOrderBookSource
     {
         private const string MarketSymbol = "btceur";
         private const string OrderBookEndpoint = $"/api/v2/order_book/{MarketSymbol}/";
 
-        public async Task<OrderBookSnapshot> GetLatestAsync(CancellationToken cancellationToken = default)
+        public async Task<OrderBookSnapshot> FetchLatestAsync(CancellationToken cancellationToken = default)
         {
             using var response = await httpClient.GetAsync(OrderBookEndpoint, cancellationToken);
 

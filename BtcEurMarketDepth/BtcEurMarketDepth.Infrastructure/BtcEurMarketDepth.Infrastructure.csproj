@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\BtcEurMarketDepth.Application\BtcEurMarketDepth.Application.csproj" />
     <ProjectReference Include="..\BtcEurMarketDepth.Domain\BtcEurMarketDepth.Domain.csproj" />
   </ItemGroup>

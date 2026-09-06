@@ -13,20 +13,19 @@ namespace BtcEurMarketDepth.Api.Endpoints
             return endpoints;
         }
 
-        private static async Task<IResult> GetOrderBook(
-            IOrderBookProvider orderBookProvider,
-            CancellationToken cancellationToken)
+        private static IResult GetOrderBook(IOrderBookStore orderBookStore)
         {
-            var orderBook = await orderBookProvider.GetLatestAsync(cancellationToken);
+            var orderBook = orderBookStore.GetLatest();
 
-            return Results.Ok(orderBook);
+            return orderBook is null
+                ? Results.StatusCode(StatusCodes.Status503ServiceUnavailable)
+                : Results.Ok(orderBook);
         }
 
-        private static async Task<IResult> GetBuyQuote(
+        private static IResult GetBuyQuote(
             decimal quantity,
-            IOrderBookProvider orderBookProvider,
-            IBuyQuoteCalculator buyQuoteCalculator,
-            CancellationToken cancellationToken)
+            IOrderBookStore orderBookStore,
+            IBuyQuoteCalculator buyQuoteCalculator)
         {
             if (quantity <= 0)
             {
@@ -36,7 +35,13 @@ namespace BtcEurMarketDepth.Api.Endpoints
                 });
             }
 
-            var orderBook = await orderBookProvider.GetLatestAsync(cancellationToken);
+            var orderBook = orderBookStore.GetLatest();
+
+            if (orderBook is null)
+            {
+                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+
             var quote = buyQuoteCalculator.Calculate(orderBook, quantity);
 
             return Results.Ok(quote);
