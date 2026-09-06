@@ -1,3 +1,4 @@
+using BtcEurMarketDepth.Api.Configuration;
 using BtcEurMarketDepth.Api.Endpoints;
 using BtcEurMarketDepth.Api.Hubs;
 using BtcEurMarketDepth.Api.MarketData;
@@ -10,52 +11,9 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 
-var connectionString = builder.Configuration.GetConnectionString("MarketDepth") ?? throw new InvalidOperationException("The MarketDepth database connection string is not configured.");
-// Add services to the container.
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Frontend", policy =>
-    {
-        policy
-            .WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-
-builder.Services.AddDbContextFactory<MarketDepthDbContext>(options =>
-{
-    options.UseSqlServer(connectionString);
-});
-
-builder.Services.AddSingleton<IOrderBookSnapshotAuditRepository, OrderBookSnapshotAuditRepository>();
-
-builder.Services
-    .AddHttpClient<IOrderBookSource, BitstampOrderBookSource>(client =>
-    {
-        client.BaseAddress = new Uri("https://www.bitstamp.net");
-    })
-    .AddStandardResilienceHandler(options =>
-    {
-        options.Retry.MaxRetryAttempts = 3;
-        options.Retry.Delay = TimeSpan.FromSeconds(1);
-        options.Retry.UseJitter = true;
-
-        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-    });
-
-builder.Services.AddSignalR();
-
-builder.Services.AddSingleton<IOrderBookUpdateNotifier, SignalROrderBookUpdateNotifier>();
-builder.Services.AddSingleton<IOrderBookStore, InMemoryOrderBookStore>();
-builder.Services.AddSingleton<IBuyQuoteCalculator, BuyQuoteCalculator>();
-builder.Services.AddHostedService<OrderBookPollingService>();
+builder.Services.AddApiServices();
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
 
 var app = builder.Build();
 
