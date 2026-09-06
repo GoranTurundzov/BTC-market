@@ -20,7 +20,9 @@ onMounted(async () => {
 
 <template>
   <main>
-    <h1>BTC/EUR Market Depth</h1>
+    <h1 class="text-3xl font-bold text-blue-500">
+      BTC/EUR Market Depth
+    </h1>
 
     <p v-if="isLoading">Loading order book...</p>
 
