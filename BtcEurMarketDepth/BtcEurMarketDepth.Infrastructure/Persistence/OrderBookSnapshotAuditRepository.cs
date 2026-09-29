@@ -37,5 +37,64 @@ namespace BtcEurMarketDepth.Infrastructure.Persistence
 
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<IReadOnlyList<OrderBookSnapshot>> GetHistoryAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken cancellationToken = default)
+        {
+            var snapshots = await dbContextFactory
+                .CreateDbContextAsync(cancellationToken);
+
+            await using (snapshots)
+            {
+                var auditSnapshots = await snapshots.OrderBookSnapshots
+                    .AsNoTracking()
+                    .Where(snapshot =>
+                        snapshot.AcquiredAt >= from &&
+                        snapshot.AcquiredAt <= to)
+                    .OrderBy(snapshot => snapshot.AcquiredAt)
+                    .ToListAsync(cancellationToken);
+
+                return auditSnapshots
+                    .Select(MapSnapshot)
+                    .ToArray();
+            }
+        }
+
+        public async Task<OrderBookSnapshot?> GetClosestAsync(
+            DateTimeOffset timestamp,
+            CancellationToken cancellationToken = default)
+        {
+            await using var dbContext =
+                await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+            var auditSnapshot = await dbContext.OrderBookSnapshots
+                .AsNoTracking()
+                .Where(snapshot => snapshot.AcquiredAt <= timestamp)
+                .OrderByDescending(snapshot => snapshot.AcquiredAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return auditSnapshot is null
+                ? null
+                : MapSnapshot(auditSnapshot);
+        }
+
+        private static OrderBookSnapshot MapSnapshot(
+            OrderBookSnapshotAudit auditSnapshot)
+        {
+            var bids = JsonSerializer.Deserialize<List<PriceLevel>>(
+                auditSnapshot.BidsJson) ?? [];
+
+            var asks = JsonSerializer.Deserialize<List<PriceLevel>>(
+                auditSnapshot.AsksJson) ?? [];
+
+            return new OrderBookSnapshot(
+                auditSnapshot.Symbol,
+                auditSnapshot.AcquiredAt,
+                bids,
+                asks,
+                auditSnapshot.Sequence);
+        }
     }
 }

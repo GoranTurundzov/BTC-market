@@ -5,23 +5,24 @@ using BtcEurMarketDepth.Api.Hubs;
 var builder = WebApplication.CreateBuilder(args);
 
 
-builder.Services.AddApiServices();
+builder.Services.AddApiServices(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-
-app.UseHttpsRedirection();
-
-app.MapMarketEndpoints();
+else
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("Frontend");
+
+app.MapMarketEndpoints();
 app.MapHub<MarketHub>("/hubs/market");
 
 app.Run();
