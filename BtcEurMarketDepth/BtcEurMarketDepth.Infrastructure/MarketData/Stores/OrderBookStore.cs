@@ -1,12 +1,12 @@
 using BtcEurMarketDepth.Application.MarketData;
 using BtcEurMarketDepth.Domain.Model;
 
-namespace BtcEurMarketDepth.Infrastructure.MarketData
+namespace BtcEurMarketDepth.Infrastructure.MarketData.Stores
 {
     /// <summary>
     /// Stores the most recently acquired order-book snapshot in memory.
     /// </summary>
-    public class InMemoryOrderBookStore : IOrderBookStore
+    public class OrderBookStore : IOrderBookStore
     {
         private OrderBookSnapshot? latestSnapshot;
 

@@ -47,6 +47,7 @@ namespace BtcEurMarketDepth.Infrastructure.Persistence
                 snapshot.Symbol,
                 snapshot.AcquiredAt
             });
+            entity.HasIndex(snapshot => snapshot.AcquiredAt);
         }
     }
 }

@@ -4,6 +4,6 @@ namespace BtcEurMarketDepth.Application.MarketData
 {
     public interface IOrderBookSource
     {
-        Task<OrderBookSnapshot> FetchLatestAsync(CancellationToken cancellationToken = default);
+        IAsyncEnumerable<OrderBookSnapshot> ReadSnapshotsAsync(CancellationToken cancellationToken = default);
     }
 }

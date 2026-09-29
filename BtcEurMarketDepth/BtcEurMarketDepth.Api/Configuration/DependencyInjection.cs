@@ -1,10 +1,15 @@
 using BtcEurMarketDepth.Api.MarketData;
 using BtcEurMarketDepth.Application.MarketData;
 using BtcEurMarketDepth.Application.Quotes;
-using BtcEurMarketDepth.Infrastructure.MarketData;
+using BtcEurMarketDepth.Infrastructure.Configuration;
+using BtcEurMarketDepth.Infrastructure.MarketData.Exchanges.Bitstamp;
+using BtcEurMarketDepth.Infrastructure.MarketData.Processing;
+using BtcEurMarketDepth.Infrastructure.MarketData.Stores;
 using BtcEurMarketDepth.Infrastructure.Persistence;
+using BtcEurMarketDepth.Infrastructure.Transport.WebSockets;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace BtcEurMarketDepth.Api.Configuration
 {
@@ -24,17 +29,27 @@ namespace BtcEurMarketDepth.Api.Configuration
         /// The same service collection for chaining additional registrations.
         /// </returns>
         public static IServiceCollection AddApiServices(
-            this IServiceCollection services)
+            this IServiceCollection services,
+            IConfiguration configuration)
         {
             services.AddOpenApi();
             services.AddSignalR();
+
+            var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? throw new InvalidOperationException("Cors:AllowedOrigins is not configured.");
+
+
+            if (allowedOrigins.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "At least one CORS origin must be configured.");
+            }
 
             services.AddCors(options =>
             {
                 options.AddPolicy("Frontend", policy =>
                 {
                     policy
-                        .WithOrigins("http://localhost:5173")
+                        .WithOrigins(allowedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();
@@ -68,8 +83,8 @@ namespace BtcEurMarketDepth.Api.Configuration
         }
 
         /// <summary>
-        /// Registers database access, external market-data access,
-        /// resilience policies, snapshot storage, and background polling.
+        /// Registers database access, the live WebSocket market-data source,
+        /// snapshot storage, and the background streaming service.
         /// </summary>
         /// <param name="services">
         /// The application's dependency-injection service collection.
@@ -96,30 +111,51 @@ namespace BtcEurMarketDepth.Api.Configuration
                 options.UseSqlServer(connectionString);
             });
 
-            services.AddSingleton<
-                IOrderBookSnapshotAuditRepository,
-                OrderBookSnapshotAuditRepository>();
+            services
+                .AddOptions<BitstampWebSocketOptions>()
+                .Bind(configuration.GetSection(BitstampWebSocketOptions.SectionName))
+                .Validate(settings => Uri.TryCreate(
+                    settings.Url,
+                    UriKind.Absolute,
+                    out var uri) && uri.Scheme == Uri.UriSchemeWss,
+                    "BitstampWebSocket:Url must be an absolute wss:// URL.")
+                .Validate(settings => Uri.TryCreate(
+                    settings.RestApiUrl,
+                    UriKind.Absolute,
+                    out var restUri) && restUri.Scheme == Uri.UriSchemeHttps,
+                    "BitstampWebSocket:RestApiUrl must be an absolute https:// URL.")
+                .Validate(settings => !string.IsNullOrWhiteSpace(settings.MarketSymbol),
+                    "BitstampWebSocket:MarketSymbol is required.")
+                .Validate(settings => !string.IsNullOrWhiteSpace(settings.DisplaySymbol),
+                    "BitstampWebSocket:DisplaySymbol is required.")
+                .Validate(settings => settings.ReconnectDelaySeconds > 0,
+                    "BitstampWebSocket:ReconnectDelaySeconds must be greater than zero.")
+                .Validate(settings => settings.PublishIntervalMilliseconds > 0,
+                    "BitstampWebSocket:PublishIntervalMilliseconds must be greater than zero.")
+                .ValidateOnStart();
 
             services
-                .AddHttpClient<IOrderBookSource, BitstampOrderBookSource>(client =>
+                .AddHttpClient<BitstampOrderBookSource>((serviceProvider, client) =>
                 {
-                    client.BaseAddress = new Uri("https://www.bitstamp.net");
+                    var settings = serviceProvider
+                        .GetRequiredService<IOptions<BitstampWebSocketOptions>>()
+                        .Value;
+
+                    client.BaseAddress = new Uri(
+                        settings.RestApiUrl.TrimEnd('/') + "/");
                 })
-                .AddStandardResilienceHandler(options =>
-                {
-                    options.Retry.MaxRetryAttempts = 3;
-                    options.Retry.Delay = TimeSpan.FromSeconds(1);
-                    options.Retry.UseJitter = true;
+                .AddStandardResilienceHandler();
 
-                    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-                    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-                });
+            services.AddSingleton<IOrderBookSnapshotAuditRepository, OrderBookSnapshotAuditRepository>();
 
-            services.AddSingleton<
-                IOrderBookStore,
-                InMemoryOrderBookStore>();
+            services.AddSingleton<IOrderBookSource>(serviceProvider =>
+                serviceProvider.GetRequiredService<BitstampOrderBookSource>());
 
-            services.AddHostedService<OrderBookPollingService>();
+            services.AddSingleton<IClientWebSocketFactory, ClientWebSocketFactory>();
+
+            services.AddSingleton<IOrderBookStore, OrderBookStore>();
+
+            services.AddHostedService<OrderBookStreamingService>();
 
             return services;
         }

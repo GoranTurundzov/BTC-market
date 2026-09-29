@@ -20,9 +20,40 @@ namespace BtcEurMarketDepth.Api.Endpoints
         public static IEndpointRouteBuilder MapMarketEndpoints(this IEndpointRouteBuilder endpoints)
         {
             endpoints.MapGet("/api/market/order-book", GetOrderBook);
+            endpoints.MapGet("/api/market/order-book/history", GetHistory);
             endpoints.MapGet("/api/market/quote", GetBuyQuote);
 
             return endpoints;
+        }
+
+        private static async Task<IResult> GetHistory(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            IOrderBookSnapshotAuditRepository auditRepository,
+            CancellationToken cancellationToken)
+        {
+            if (from > to)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "The from timestamp must be before the to timestamp."
+                });
+            }
+
+            try
+            {
+                var snapshots = await auditRepository.GetHistoryAsync(
+                    from,
+                    to,
+                    cancellationToken);
+
+                return Results.Ok(snapshots);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return Results.Empty;
+            }
         }
 
         /// <summary>
@@ -60,10 +91,13 @@ namespace BtcEurMarketDepth.Api.Endpoints
         /// The calculated quote, or an appropriate HTTP error response when
         /// the quantity is invalid or no order book is available.
         /// </returns>
-        private static IResult GetBuyQuote(
+        private static async Task<IResult> GetBuyQuote(
             decimal quantity,
+            DateTimeOffset? at,
             IOrderBookStore orderBookStore,
-            IBuyQuoteCalculator buyQuoteCalculator)
+            IOrderBookSnapshotAuditRepository auditRepository,
+            IBuyQuoteCalculator buyQuoteCalculator,
+            CancellationToken cancellationToken)
         {
             if (quantity <= 0)
             {
@@ -73,7 +107,11 @@ namespace BtcEurMarketDepth.Api.Endpoints
                 });
             }
 
-            var orderBook = orderBookStore.GetLatest();
+            var orderBook = at.HasValue
+                ? await auditRepository.GetClosestAsync(
+                    at.Value,
+                    cancellationToken)
+                : orderBookStore.GetLatest();
 
             if (orderBook is null)
             {

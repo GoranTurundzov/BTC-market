@@ -1,8 +1,16 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
-using BtcEurMarketDepth.Infrastructure.MarketData;
+using BtcEurMarketDepth.Infrastructure.Configuration;
+using BtcEurMarketDepth.Infrastructure.MarketData.Exchanges.Bitstamp;
+using BtcEurMarketDepth.Infrastructure.Transport.WebSockets;
+
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace BtcEurMarketDepth.Tests
 {
@@ -10,135 +18,235 @@ namespace BtcEurMarketDepth.Tests
     public sealed class BitstampOrderBookSourceTests
     {
         [Test]
-        public async Task FetchLatestAsyncShouldMapAndSortBitstampResponse()
+        public async Task ReadSnapshotsAsyncShouldSendSubscriptionAndYieldSnapshot()
         {
-            const string json = """
-        {
-          "timestamp": "1700000000",
-          "bids": [
-            ["100.00", "2.5"],
-            ["101.00", "1.0"]
-          ],
-          "asks": [
-            ["103.00", "3.0"],
-            ["102.00", "1.5"]
-          ]
-        }
-        """;
+            var socket = new FakeWebSocketClient();
 
-            using var httpClient = CreateHttpClient(json);
-            var source = new BitstampOrderBookSource(httpClient);
+            socket.EnqueueTextMessage(
+                """
+            {
+              "event": "data",
+              "channel": "diff_order_book_btceur",
+              "event_id": "2",
+              "pre_event_id": "1",
+              "data": {
+                "timestamp": "1700000000",
+                "bids": [
+                  ["100.00", "2.5"]
+                ],
+                "asks": [
+                  ["101.00", "1.0"]
+                ]
+              }
+            }
+            """);
 
-            var snapshot = await source.FetchLatestAsync();
+            var source = CreateSource(socket);
+
+            using var cancellationSource = new CancellationTokenSource();
+
+            await using var enumerator = source
+                .ReadSnapshotsAsync(cancellationSource.Token)
+                .GetAsyncEnumerator(cancellationSource.Token);
+
+            var hasSnapshot = await enumerator.MoveNextAsync();
+
+            Assert.That(hasSnapshot, Is.True);
+
+            var snapshot = enumerator.Current;
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(snapshot.Symbol, Is.EqualTo("BTC/EUR"));
-                Assert.That(snapshot.Sequence, Is.EqualTo(0));
-
-                Assert.That(snapshot.Bids, Has.Count.EqualTo(2));
-            }
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(snapshot.Bids[0].Price, Is.EqualTo(101m));
-                Assert.That(snapshot.Bids[1].Price, Is.EqualTo(100m));
-
-                Assert.That(snapshot.Asks, Has.Count.EqualTo(2));
-            }
-
-            using (Assert.EnterMultipleScope())
-            {
+                Assert.That(snapshot.Bids, Has.Count.EqualTo(1));
+                Assert.That(snapshot.Asks, Has.Count.EqualTo(1));
+                Assert.That(snapshot.Bids[0].Price, Is.EqualTo(99m));
+                Assert.That(snapshot.Bids[0].Quantity, Is.EqualTo(2.5m));
                 Assert.That(snapshot.Asks[0].Price, Is.EqualTo(102m));
-                Assert.That(snapshot.Asks[1].Price, Is.EqualTo(103m));
-
-                Assert.That(snapshot.Bids[0].Quantity, Is.EqualTo(1m));
-                Assert.That(snapshot.Asks[0].Quantity, Is.EqualTo(1.5m));
+                Assert.That(snapshot.Asks[0].Quantity, Is.EqualTo(1m));
             }
+
+            Assert.That(await enumerator.MoveNextAsync(), Is.True);
+            Assert.That(enumerator.Current.Bids[0].Price, Is.EqualTo(100m));
+            Assert.That(enumerator.Current.Asks[0].Price, Is.EqualTo(101m));
+
+            Assert.That(socket.SentMessages, Has.Count.EqualTo(1));
+
+            using var subscriptionDocument =
+                JsonDocument.Parse(socket.SentMessages[0]);
+
+            var root = subscriptionDocument.RootElement;
+
+            Assert.That(
+                root.GetProperty("event").GetString(),
+                Is.EqualTo("bts:subscribe"));
+
+            Assert.That(
+                root.GetProperty("data")
+                    .GetProperty("channel")
+                    .GetString(),
+                Is.EqualTo("diff_order_book_btceur"));
+
+            cancellationSource.Cancel();
         }
 
         [Test]
-        public void FetchLatestAsyncShouldThrowWhenResponseIsEmpty()
+        public async Task ReadSnapshotsAsyncShouldIgnoreSubscriptionAcknowledgement()
         {
-            using var httpClient = CreateHttpClient("null");
-            var source = new BitstampOrderBookSource(httpClient);
+            var socket = new FakeWebSocketClient();
 
-            Assert.ThrowsAsync<InvalidOperationException>(
-                () => source.FetchLatestAsync());
-        }
-
-        [Test]
-        public void FetchLatestAsyncShouldThrowWhenPriceLevelIsInvalid()
-        {
-            const string json = """
-        {
-          "timestamp": "1700000000",
-          "bids": [
-            ["invalid-price", "2.5"]
-          ],
-          "asks": [
-            ["102.00", "1.5"]
-          ]
-        }
-        """;
-
-            using var httpClient = CreateHttpClient(json);
-            var source = new BitstampOrderBookSource(httpClient);
-
-            Assert.ThrowsAsync<JsonException>(
-                () => source.FetchLatestAsync());
-        }
-
-        [Test]
-        public void FetchLatestAsyncShouldThrowWhenBitstampReturnsFailureStatus()
-        {
-            using var httpClient = CreateHttpClient(
-                "{}",
-                HttpStatusCode.ServiceUnavailable);
-
-            var source = new BitstampOrderBookSource(httpClient);
-
-            Assert.ThrowsAsync<HttpRequestException>(
-                () => source.FetchLatestAsync());
-        }
-
-        private static HttpClient CreateHttpClient(
-            string responseContent,
-            HttpStatusCode statusCode = HttpStatusCode.OK)
-        {
-            var handler = new StubHttpMessageHandler(
-                responseContent,
-                statusCode);
-
-            return new HttpClient(handler)
+            socket.EnqueueTextMessage(
+                """
             {
-                BaseAddress = new Uri("https://www.bitstamp.net"),
-            };
+              "event": "bts:subscription_succeeded",
+              "channel": "diff_order_book_btceur",
+              "data": {}
+            }
+            """);
+
+            socket.EnqueueTextMessage(
+                """
+            {
+              "event": "data",
+              "channel": "diff_order_book_btceur",
+              "event_id": "2",
+              "pre_event_id": "1",
+              "data": {
+                "timestamp": "1700000000",
+                "bids": [
+                  ["100.00", "2.5"]
+                ],
+                "asks": [
+                  ["101.00", "1.0"]
+                ]
+              }
+            }
+            """);
+
+            var source = CreateSource(socket);
+
+            using var cancellationSource = new CancellationTokenSource();
+
+            await using var enumerator = source
+                .ReadSnapshotsAsync(cancellationSource.Token)
+                .GetAsyncEnumerator(cancellationSource.Token);
+
+            var hasSnapshot = await enumerator.MoveNextAsync();
+
+            Assert.That(hasSnapshot, Is.True);
+            Assert.That(enumerator.Current.Bids, Has.Count.EqualTo(1));
+            Assert.That(enumerator.Current.Asks, Has.Count.EqualTo(1));
+
+            cancellationSource.Cancel();
         }
 
-        private sealed class StubHttpMessageHandler(
-            string responseContent,
-            HttpStatusCode statusCode)
-            : HttpMessageHandler
+        [Test]
+        public async Task ReadSnapshotsAsyncShouldIgnoreDifferentChannel()
+        {
+            var socket = new FakeWebSocketClient();
+
+            socket.EnqueueTextMessage(
+                """
+        {
+          "event": "data",
+          "channel": "diff_order_book_ethusd",
+          "data": {
+            "timestamp": "1700000000",
+            "bids": [
+              ["100.00", "2.5"]
+            ],
+            "asks": [
+              ["101.00", "1.0"]
+            ]
+          }
+        }
+        """);
+
+            socket.EnqueueTextMessage(
+                """
+        {
+          "event": "data",
+          "channel": "diff_order_book_btceur",
+          "event_id": "2",
+          "pre_event_id": "1",
+          "data": {
+            "timestamp": "1700000000",
+            "bids": [
+              ["100.00", "2.5"]
+            ],
+            "asks": [
+              ["101.00", "1.0"]
+            ]
+          }
+        }
+        """);
+
+            var source = CreateSource(socket);
+
+            using var cancellationSource = new CancellationTokenSource();
+
+            await using var enumerator = source
+                .ReadSnapshotsAsync(cancellationSource.Token)
+                .GetAsyncEnumerator(cancellationSource.Token);
+
+            var hasSnapshot = await enumerator.MoveNextAsync();
+
+            Assert.That(hasSnapshot, Is.True);
+            Assert.That(enumerator.Current.Symbol, Is.EqualTo("BTC/EUR"));
+            Assert.That(enumerator.Current.Bids, Has.Count.EqualTo(1));
+            Assert.That(enumerator.Current.Asks, Has.Count.EqualTo(1));
+
+            cancellationSource.Cancel();
+        }
+
+        private static BitstampOrderBookSource CreateSource(
+            IWebSocketClient socket)
+        {
+            var options = Options.Create(
+                new BitstampWebSocketOptions
+                {
+                    Url = "wss://ws.bitstamp.net",
+                    RestApiUrl = "https://www.bitstamp.net/api/v2/",
+                    MarketSymbol = "btceur",
+                    DisplaySymbol = "BTC/EUR",
+                    ReconnectDelaySeconds = 1
+                });
+
+            var factory = new FakeClientWebSocketFactory(socket);
+
+            var httpClient = new HttpClient(
+                new FakeHttpMessageHandler())
+            {
+                BaseAddress = new Uri("https://www.bitstamp.net/api/v2/")
+            };
+
+            return new BitstampOrderBookSource(
+                NullLogger<BitstampOrderBookSource>.Instance,
+                options,
+                factory,
+                httpClient);
+
+        }
+
+        private sealed class FakeHttpMessageHandler : HttpMessageHandler
         {
             protected override Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(request.Method, Is.EqualTo(HttpMethod.Get));
-                    Assert.That(
-                        request.RequestUri?.PathAndQuery,
-                        Is.EqualTo("/api/v2/order_book/btceur/"));
-                }
-
-                var response = new HttpResponseMessage(statusCode)
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(
-                        responseContent,
+                        """
+                        {
+                          "timestamp": "1700000000",
+                          "microtimestamp": "1700000000000000",
+                          "bids": [["99.00", "2.5"]],
+                          "asks": [["102.00", "1.0"]]
+                        }
+                        """,
                         Encoding.UTF8,
-                        "application/json"),
+                        "application/json")
                 };
 
                 return Task.FromResult(response);
