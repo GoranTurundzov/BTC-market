@@ -5,7 +5,7 @@ import {
 } from '@microsoft/signalr'
 import type { OrderBookSnapshot } from '../types/order-book-snapshot'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5272'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export function createMarketHub(
   onOrderBookUpdated: (snapshot: OrderBookSnapshot) => void,

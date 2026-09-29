@@ -16,10 +16,23 @@ const quote: BuyQuote = {
 }
 
 describe('QuotePanel', () => {
+  it('starts with an empty quantity field when no quantity is provided', () => {
+    const wrapper = mount(QuotePanel, {
+      props: {
+        modelValue: '',
+        quote: null,
+        isLoading: false,
+        errorMessage: null,
+      },
+    })
+
+    expect(wrapper.find('input').element.value).toBe('')
+  })
+
   it('renders the requested quantity', () => {
     const wrapper = mount(QuotePanel, {
       props: {
-        modelValue: 2,
+        modelValue: '2',
         quote: null,
         isLoading: false,
         errorMessage: null,
@@ -35,7 +48,7 @@ describe('QuotePanel', () => {
   it('emits the updated quantity when the input changes', async () => {
     const wrapper = mount(QuotePanel, {
       props: {
-        modelValue: 1,
+        modelValue: '1',
         quote: null,
         isLoading: false,
         errorMessage: null,
@@ -50,13 +63,13 @@ describe('QuotePanel', () => {
     const emittedValues = wrapper.emitted('update:modelValue')
 
     expect(emittedValues).toBeDefined()
-    expect(emittedValues?.[emittedValues.length - 1]).toEqual([2.5])
+    expect(emittedValues?.[emittedValues.length - 1]).toEqual(['2.5'])
   })
 
   it('renders quote details', () => {
     const wrapper = mount(QuotePanel, {
       props: {
-        modelValue: 2,
+        modelValue: '2',
         quote,
         isLoading: false,
         errorMessage: null,
@@ -73,7 +86,7 @@ describe('QuotePanel', () => {
   it('renders the error message', () => {
     const wrapper = mount(QuotePanel, {
       props: {
-        modelValue: 2,
+        modelValue: '2',
         quote: null,
         isLoading: false,
         errorMessage: 'Unable to calculate quote.',
