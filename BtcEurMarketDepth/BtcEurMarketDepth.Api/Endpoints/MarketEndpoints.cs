@@ -40,12 +40,20 @@ namespace BtcEurMarketDepth.Api.Endpoints
                 });
             }
 
-            var snapshots = await auditRepository.GetHistoryAsync(
-                from,
-                to,
-                cancellationToken);
+            try
+            {
+                var snapshots = await auditRepository.GetHistoryAsync(
+                    from,
+                    to,
+                    cancellationToken);
 
-            return Results.Ok(snapshots);
+                return Results.Ok(snapshots);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return Results.Empty;
+            }
         }
 
         /// <summary>
