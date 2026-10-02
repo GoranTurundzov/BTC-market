@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import type { BuyQuote } from '../types/buy-quote'
 
-defineProps<{
+const props = defineProps<{
   modelValue: string
   quote: BuyQuote | null
   isLoading: boolean
@@ -11,6 +12,27 @@ defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
+const lastFillabilityStatus = ref<boolean | null>(null)
+
+watch(
+  () => props.quote,
+  (quote) => {
+    if (quote) {
+      lastFillabilityStatus.value = quote.isFullyFillable
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value.trim() === '') {
+      lastFillabilityStatus.value = null
+    }
+  },
+)
 
 function handleInput(event: Event) {
   const input = event.target as HTMLInputElement
@@ -36,11 +58,6 @@ function handleInput(event: Event) {
       @input="handleInput"
     />
 
-    <p v-if="isLoading" class="mt-4 text-sm text-slate-400">Calculating quote...</p>
-
-    <p v-else-if="errorMessage" class="mt-4 text-sm text-rose-400">
-      {{ errorMessage }}
-    </p>
 
     <div class="mt-5 space-y-3">
       <div class="flex justify-between border-b border-slate-800 pb-3">
@@ -70,17 +87,13 @@ function handleInput(event: Event) {
           {{ quote ? `${quote.remainingQuantity} BTC` : '0 BTC' }}
         </span>
       </div>
-
-      <p
-        v-if="quote && !quote.isFullyFillable"
-        class="rounded-lg bg-amber-950/50 p-3 text-sm text-amber-300"
-      >
-        The requested quantity cannot be fully filled with the available asks.
-      </p>
-
-      <p v-else-if="quote" class="rounded-lg bg-emerald-950/50 p-3 text-sm text-emerald-300">
-        The requested quantity can be fully filled.
-      </p>
+        <p
+          v-if="lastFillabilityStatus !== null"
+          class="rounded-lg p-3 text-sm"
+          :class="lastFillabilityStatus ? 'bg-emerald-950/50 text-emerald-300' : 'bg-amber-950/50 text-amber-300'"
+        >
+          {{ lastFillabilityStatus ? 'The requested quantity can be fully filled.' : 'The requested quantity cannot be fully filled with the available asks.' }}
+        </p>
     </div>
   </section>
 </template>

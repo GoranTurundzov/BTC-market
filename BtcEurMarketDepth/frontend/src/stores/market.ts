@@ -197,56 +197,58 @@ export const useMarketStore = defineStore('market', () => {
   }
 
   async function loadQuote() {
-    const requestId = ++quoteRequestId
-    const rawQuantity = requestedQuantity.value.trim()
+  const requestId = ++quoteRequestId
+  const rawQuantity = requestedQuantity.value.trim()
 
+  quoteErrorMessage.value = null
+
+  if (rawQuantity === '') {
     quote.value = null
-    quoteErrorMessage.value = null
+    isQuoteLoading.value = false
+    return
+  }
 
-    if (rawQuantity === '') {
-      isQuoteLoading.value = false
-      return
+  const quantity = Number(rawQuantity)
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    quote.value = null
+    quoteErrorMessage.value = 'Enter a quantity greater than zero.'
+    isQuoteLoading.value = false
+    return
+  }
+
+  if (!displayedOrderBook.value) {
+    quote.value = null
+    isQuoteLoading.value = false
+    return
+  }
+
+  isQuoteLoading.value = true
+
+  try {
+    const nextQuote = await getBuyQuote(
+      quantity,
+      isHistorical.value
+        ? displayedOrderBook.value.acquiredAt
+        : undefined,
+    )
+
+    if (requestId === quoteRequestId) {
+      quote.value = nextQuote
     }
-
-    const quantity = Number(rawQuantity)
-
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      quoteErrorMessage.value = 'Enter a quantity greater than zero.'
-      isQuoteLoading.value = false
-      return
-    }
-
-    if (!displayedOrderBook.value) {
-      isQuoteLoading.value = false
-      return
-    }
-
-    isQuoteLoading.value = true
-
-    try {
-      const nextQuote = await getBuyQuote(
-        quantity,
-        isHistorical.value
-          ? displayedOrderBook.value.acquiredAt
-          : undefined,
+  } catch (error) {
+    if (requestId === quoteRequestId) {
+      quoteErrorMessage.value = getErrorMessage(
+        error,
+        'Unable to calculate quote.',
       )
-
-      if (requestId === quoteRequestId) {
-        quote.value = nextQuote
-      }
-    } catch (error) {
-      if (requestId === quoteRequestId) {
-        quoteErrorMessage.value = getErrorMessage(
-          error,
-          'Unable to calculate quote.',
-        )
-      }
-    } finally {
-      if (requestId === quoteRequestId) {
-        isQuoteLoading.value = false
-      }
+    }
+  } finally {
+    if (requestId === quoteRequestId) {
+      isQuoteLoading.value = false
     }
   }
+}
 
   async function connect() {
     if (marketHubConnection) {

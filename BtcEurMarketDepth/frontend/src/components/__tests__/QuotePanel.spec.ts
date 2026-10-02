@@ -83,16 +83,18 @@ describe('QuotePanel', () => {
     expect(wrapper.text()).toContain('The requested quantity can be fully filled.')
   })
 
-  it('renders the error message', () => {
-    const wrapper = mount(QuotePanel, {
-      props: {
-        modelValue: '2',
-        quote: null,
-        isLoading: false,
-        errorMessage: 'Unable to calculate quote.',
-      },
-    })
-
-    expect(wrapper.text()).toContain('Unable to calculate quote.')
+  it('keeps the previous quote visible while refreshing', () => {
+  const wrapper = mount(QuotePanel, {
+    props: {
+      modelValue: '2',
+      quote,
+      isLoading: true,
+      errorMessage: null,
+    },
   })
+
+  expect(wrapper.text()).toContain('Total cost')
+  expect(wrapper.text()).toContain('€210.00')
+  expect(wrapper.text()).not.toContain('Calculating quote...')
+})
 })
